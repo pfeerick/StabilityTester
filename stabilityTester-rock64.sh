@@ -34,81 +34,84 @@ then
 	mkdir ${ROOT}/results;
 fi
 
-if [ ! -f "/usr/lib/libmpich.so.12" ];
-then
-	echo "You need libmpich-dev to run xhpl"
-	echo "Install using sudo apt install libmpich-dev"
-   	exit 1
+[[ -f "/usr/lib/libmpich.so.12" ]] || MissingTools=" libmpich-dev"
+which killall >/dev/null 2>&1 || MissingTools="${MissingTools} psmisc"
+
+if [ "X${MissingTools}" != "X" ]; then
+	echo -e "Some tools are missing, installing: ${MissingTools}" >&2
+	apt-get -f -qq -y install ${MissingTools} >/dev/null 2>&1 || \
+	echo -e "Automatic installation failed. You will need to install libmpich-dev to run xhpl" \
+	&& exit 1
 fi
+
+[[ -f ${ROOT}/${XHPLBINARY} ]] || echo "xhpl binary missing. Unable to continue!" && exit 1
 
 AVAILABLEFREQUENCIES=$(cat ${CPUFREQ_HANDLER}${SCALINGAVAILABLEFREQUENCIES})
 
 for FREQUENCY in $AVAILABLEFREQUENCIES
 do
-    if [ $FREQUENCY -ge $MINFREQUENCY ] && [ $FREQUENCY -le $MAXFREQUENCY ];
-    then
-        echo "Testing frequency ${FREQUENCY}";
-        
-        if [ $FREQUENCY -gt $(cat ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}) ];
-        then
-            echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
-            echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
-        else
-            echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
-            echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
-        fi
+	if [ $FREQUENCY -ge $MINFREQUENCY ] && [ $FREQUENCY -le $MAXFREQUENCY ];
+	then
+		echo "Testing frequency ${FREQUENCY}";
 
-        ${ROOT}/$XHPLBINARY > ${ROOT}/results/xhpl_${FREQUENCY}.log &
-        echo -n "Soc temp:"
-        while pgrep -x $XHPLBINARY > /dev/null
-        do
-            SOCTEMP=$(cat ${SOCTEMPCMD})
-            CURFREQ=$(cat ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY})
-            CURVOLT=$(cat ${REGULATOR_HANDLER}${REGULATOR_MICROVOLT})
-            echo -ne "\rSoc temp: ${SOCTEMP} \tCPU Freq: ${CURFREQ} \tCPU Core: ${CURVOLT} \t"
-            if [ $CURFREQ -eq $FREQUENCY ];
-            then
-                VOLTAGES[$FREQUENCY]=$CURVOLT
-            fi
-            sleep 1;
-        done
-        echo -ne "\r"
-        echo -n "Cooling down"
-        echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
-        echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
-        while [ $SOCTEMP -gt $COOLDOWNTEMP ];
-        do
-            SOCTEMP=$(cat ${SOCTEMPCMD})
-            echo -ne "\rCooling down: ${SOCTEMP}"
-            
-            sleep 1;
-        done
+		if [ $FREQUENCY -gt $(cat ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}) ];
+		then
+			echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
+			echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
+		else
+			echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
+			echo $FREQUENCY > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
+		fi
+
+		${ROOT}/$XHPLBINARY > ${ROOT}/results/xhpl_${FREQUENCY}.log &
+		echo -n "Soc temp:"
+		while pgrep -x $XHPLBINARY > /dev/null
+		do
+			SOCTEMP=$(cat ${SOCTEMPCMD})
+			CURFREQ=$(cat ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY})
+			CURVOLT=$(cat ${REGULATOR_HANDLER}${REGULATOR_MICROVOLT})
+			echo -ne "\rSoc temp: ${SOCTEMP} \tCPU Freq: ${CURFREQ} \tCPU Core: ${CURVOLT} \t"
+			if [ $CURFREQ -eq $FREQUENCY ];
+			then
+				VOLTAGES[$FREQUENCY]=$CURVOLT
+			fi
+			sleep 1;
+		done
+		echo -ne "\r"
+		echo -n "Cooling down"
+		echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
+		echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
+		while [ $SOCTEMP -gt $COOLDOWNTEMP ];
+		do
+			SOCTEMP=$(cat ${SOCTEMPCMD})
+			echo -ne "\rCooling down: ${SOCTEMP}"
+
+			sleep 1;
+		done
 	echo -ne "\n"
-    fi
+	fi
 done
 
 echo -e "\nDone testing stability:"
 for FREQUENCY in $AVAILABLEFREQUENCIES
 do
-    if [ $FREQUENCY -ge $MINFREQUENCY ] && [ $FREQUENCY -le $MAXFREQUENCY ];
-    then
-        FINISHEDTEST=$(grep -Ec "PASSED|FAILED" ${ROOT}/results/xhpl_${FREQUENCY}.log )
-        SUCCESSTEST=$(grep -Ec "PASSED" ${ROOT}/results/xhpl_${FREQUENCY}.log )
-        DIFF=$(grep -E 'PASSED|FAILED' ${ROOT}/results/xhpl_${FREQUENCY}.log)
-        #echo $DIFF
-        DIFF="${DIFF#*=}"
-        DIFF="${DIFF#* }"
-        #echo $DIFF
-        RESULTTEST="${DIFF% .*}"
-        VOLTAGE=${VOLTAGES[$FREQUENCY]}
-        if [ $FINISHEDTEST -eq 1 ]; 
-        then
-            echo -ne "Frequency: ${FREQUENCY}\t"
-            echo -ne "Voltage: ${VOLTAGE}\t"
-            echo -ne "Success: ${SUCCESSTEST}\t"
-            echo -ne "Result: ${RESULTTEST}\n"
-        fi
-    fi
+	if [ $FREQUENCY -ge $MINFREQUENCY ] && [ $FREQUENCY -le $MAXFREQUENCY ];
+	then
+		FINISHEDTEST=$(grep -Ec "PASSED|FAILED" ${ROOT}/results/xhpl_${FREQUENCY}.log )
+		SUCCESSTEST=$(grep -Ec "PASSED" ${ROOT}/results/xhpl_${FREQUENCY}.log )
+		DIFF=$(grep -E 'PASSED|FAILED' ${ROOT}/results/xhpl_${FREQUENCY}.log)
+		#echo $DIFF
+		DIFF="${DIFF#*=}"
+		DIFF="${DIFF#* }"
+		#echo $DIFF
+		RESULTTEST="${DIFF% .*}"
+		VOLTAGE=${VOLTAGES[$FREQUENCY]}
+		if [ $FINISHEDTEST -eq 1 ];
+		then
+			echo -ne "Frequency: ${FREQUENCY}\t"
+			echo -ne "Voltage: ${VOLTAGE}\t"
+			echo -ne "Success: ${SUCCESSTEST}\t"
+			echo -ne "Result: ${RESULTTEST}\n"
+		fi
+	fi
 done
-
-
