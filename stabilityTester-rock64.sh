@@ -38,7 +38,7 @@ fi
 which killall >/dev/null 2>&1 || MissingTools="${MissingTools} psmisc"
 
 if [ "X${MissingTools}" != "X" ]; then
-	echo -e "Some tools are missing, installing: ${MissingTools}" >&2
+	echo -e "Some tools are missing, installing:${MissingTools}" >&2
 	apt-get -f -qq -y install ${MissingTools} >/dev/null 2>&1 || \
 	echo -e "Automatic installation failed. You will need to install libmpich-dev to run xhpl" \
 	&& exit 1
