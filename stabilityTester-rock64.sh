@@ -76,7 +76,7 @@ do
 			sleep 1;
 		done
 		echo -ne "\r"
-		echo -n "Cooling down"
+		echo -n "Cooling down    "
 		echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMINFREQUENCY}
 		echo $COOLDOWNFREQ > ${CPUFREQ_HANDLER}${SCALINGMAXFREQUENCY}
 		while [ $SOCTEMP -gt $COOLDOWNTEMP ];
@@ -106,10 +106,10 @@ do
 		VOLTAGE=${VOLTAGES[$FREQUENCY]}
 		if [ $FINISHEDTEST -eq 1 ];
 		then
-			echo -ne "Frequency: ${FREQUENCY}\t"
-			echo -ne "Voltage: ${VOLTAGE}\t"
-			echo -ne "Success: ${SUCCESSTEST}\t"
-			echo -ne "Result: ${RESULTTEST}\n"
+			echo -ne "Frequency:\t"$(awk 'BEGIN{printf ("%4.0f",'$FREQUENCY'/1000); }')"Mhz\t\t"
+			echo -ne "Voltage:" $(awk 'BEGIN{printf ("%5.3f",'$VOLTAGE'/1000000.0); }')"V \t" #$(printf '%0.2f' ${VOLTAGE})mV\t"
+			echo -ne "Success: $(printf '%2s' ${SUCCESSTEST})\t"
+			echo -ne "Result: $(printf '%9s' ${RESULTTEST})\n"
 		fi
 	fi
 done
