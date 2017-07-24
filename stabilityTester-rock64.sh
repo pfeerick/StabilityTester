@@ -44,8 +44,6 @@ if [ "X${MissingTools}" != "X" ]; then
 	&& exit 1
 fi
 
-[[ -f ${ROOT}/${XHPLBINARY} ]] || echo "xhpl binary missing. Unable to continue!" && exit 1
-
 AVAILABLEFREQUENCIES=$(cat ${CPUFREQ_HANDLER}${SCALINGAVAILABLEFREQUENCIES})
 
 for FREQUENCY in $AVAILABLEFREQUENCIES
