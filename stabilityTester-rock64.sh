@@ -26,7 +26,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-trap "{ killall ${ROOT}/${XHPLBINARY}; exit 0; }" SIGINT SIGTERM
+trap "{ echo;killall ${ROOT}/${XHPLBINARY}; exit 0; }" SIGINT SIGTERM
 
 if [ ! -d "${ROOT}/results" ];
 then
@@ -34,14 +34,22 @@ then
 	mkdir ${ROOT}/results;
 fi
 
-[[ -f "/usr/lib/libmpich.so.12" ]] || MissingTools=" libmpich-dev"
-which killall >/dev/null 2>&1 || MissingTools="${MissingTools} psmisc"
+# check if dependencies installed
+[[ $(dpkg-query -W -f='${Status}' libmpich-dev 2>/dev/null | grep -c "ok installed") -eq 1 ]] || MissingTools=" libmpich-dev"
+[[ $(dpkg-query -W -f='${Status}' psmisc 2>/dev/null | grep -c "ok installed") -eq 1 ]] || MissingTools="${MissingTools} psmisc"
 
 if [ "X${MissingTools}" != "X" ]; then
 	echo -e "Some tools are missing, installing:${MissingTools}" >&2
-	apt-get -f -qq -y install ${MissingTools} >/dev/null 2>&1 || \
-	echo -e "Automatic installation failed. You will need to install libmpich-dev to run xhpl" \
-	&& exit 1
+	apt-get -f -qq -y install ${MissingTools} >/dev/null 2>&1 
+	
+	# check if tools are now installed
+        MissingTools=""
+	[[ $(dpkg-query -W -f='${Status}' libmpich-dev 2>/dev/null | grep -c "ok installed") -eq 1 ]] || MissingTools=" libmpich-dev"
+	[[ $(dpkg-query -W -f='${Status}' psmisc 2>/dev/null | grep -c "ok installed") -eq 1 ]] || MissingTools="${MissingTools} psmisc"
+	if [ "X${MissingTools}" != "X" ]; then
+		echo "Automatic installation failed. You will need to install${MissingTools} manually!"
+		exit 2
+	fi
 fi
 
 AVAILABLEFREQUENCIES=$(cat ${CPUFREQ_HANDLER}${SCALINGAVAILABLEFREQUENCIES})
