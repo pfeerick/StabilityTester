@@ -13,7 +13,7 @@ SCALINGMAXFREQUENCY="scaling_max_freq";
 
 SOCTEMPCMD="/sys/class/thermal/thermal_zone0/temp"
 
-REGULATOR_HANDLER="/sys/class/regulator/regulator.2/"
+REGULATOR_HANDLER="/sys/class/regulator/regulator.4/"
 REGULATOR_MICROVOLT="microvolts"
 
 ROOT=$(pwd)
